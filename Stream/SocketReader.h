@@ -27,7 +27,7 @@ namespace Stream {
 
         void close() {
             if (_sock) {
-                ::shutdown(_sock.get(), SHUT_RD);
+                ::shutdown(_sock->get(), SHUT_RD);
                 _sock.reset();
             }
         }

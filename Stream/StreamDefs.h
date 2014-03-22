@@ -54,7 +54,7 @@ namespace Stream {
     
     template <class Writer, class Data>
     struct Put {
-        std::enable_if<std::is_trivial<Data>::value>::type
+        typename std::enable_if<std::is_trivial<Data>::value>::type
             operator() (Writer& wr, const Data& data) const
         {
             size_t s = write(wr, &data, sizeof(Data));
@@ -66,7 +66,7 @@ namespace Stream {
 
     template <class Reader, class Data>
     struct Get {
-        std::enable_if<std::is_trivial<Data>::value, Data>::type
+        typename std::enable_if<std::is_trivial<Data>::value, Data>::type
             operator() (Reader& rd) const
         {
             Data result;

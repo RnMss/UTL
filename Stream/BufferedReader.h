@@ -24,7 +24,7 @@ namespace Stream {
         BufferedReader() {}
         
         explicit
-        BufferedReader(Reader&& file, size_t buffer_size = 16384) {
+        BufferedReader(Reader&& file, size_t buffer_size = 4096) {
             Body* pbody = new Body(std::move(file));
             body = std::unique_ptr<Body>(pbody);
             body->buffer = new char[buffer_size];
@@ -33,7 +33,7 @@ namespace Stream {
         }
 
         explicit
-        BufferedReader(const Reader& file, size_t buffer_size = 16384) {
+        BufferedReader(const Reader& file, size_t buffer_size = 4096) {
             Body* pbody = new Body(file);
             body = std::unique_ptr<Body>(pbody);
             body->buffer = new char[buffer_size];
@@ -71,11 +71,15 @@ namespace Stream {
         size_t read(void* buffer, size_t length) {
             return body->read(buffer, length);
         }
-        
+
         size_t readline(char* buffer, size_t length, const char* eol = "\n") {
             return body->readline(buffer, length, eol);
         }
-        
+
+        std::string getline(const std::string& eol) {
+            return body->getline(eol);
+        }
+
         std::string getline(size_t maxlen, const char* eol) {
             std::unique_ptr<char[]> buf(new char[maxlen]);
             size_t size = readline(buf.get(), maxlen, eol);
@@ -205,6 +209,28 @@ namespace Stream {
 
                 return res;
             }
+
+            std::string getline(const std::string& eol) {
+                const size_t LEN = buffer_size;
+                std::unique_ptr<char[]> buf = new char[LEN+1];
+
+                std::string result;
+                for ( ; ; ) {
+                    size_t n = readline(buf, LEN, eol.c_str());
+                    std::string postfix(buf + n - eol.length(), buf + n);
+                    if (n < LEN) {
+                        buf[n] = '\0';
+                        result.append(buf);
+                        break;
+                    } 
+                    if (eol == postfix) {
+                        buf[n - eol.length()] = '\0';
+                        result.append(buf);
+                        break;
+                    }
+                }
+                return result;
+            }
             
             size_t readline(char* buf, size_t len, const char* eol) {
                 #warning 这个实现有bug，将来请改为KMP算法
@@ -237,7 +263,9 @@ namespace Stream {
                             matched += 1;
                         }
                         
-                        memcpy(buf, ptr_head, n_size);
+                        if (buf != nullptr) {
+                            memcpy(buf, ptr_head, n_size);
+                        }
                     } else {
                         if (ptr_head[0] == eol[matched]) {
                             buf[0] = ptr_head[0];
@@ -258,7 +286,9 @@ namespace Stream {
                     mtx_rw.unlock();
                     cnd_r.notify_one();
                     
-                    buf += n_size;
+                    if (buf != nullptr) {
+                        buf += n_size;
+                    }
                     len -= n_size;
                 }
                 
@@ -284,7 +314,7 @@ namespace Stream {
     template <class Reader>
     struct Get<Stream::BufferedReader<Reader>, char> {
         char operator() (Reader& rd) const {
-            char c = rd.getchar;
+            char c = rd.getchar();
             if (c == -1) {
                 throw StreamException("error occured reading stream");
             }

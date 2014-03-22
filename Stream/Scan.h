@@ -8,30 +8,37 @@
 
 #pragma once
 
-template <class Reader, class Type>
-struct Scan;
+#error not implemented
 
-template <class Reader, class Type>
-void scan(Reader &wr, Type &data) {
-    Scan<Reader, Type>()(wr, data);
-}
+namespace Stream {
 
-template <class Reader, class Type, class... Types>
-void scan(Reader &wr, Type &data, Types... datas) {
-    scan(wr, data);
-    scan(wr, datas...);
-}
+    template <class Reader, class Type>
+    struct Scan;
 
-template <class Reader>
-struct Scan<Reader, int> {
-    void operator() (Reader &wr, int& result) const {
-        size_t len = std::strlen(str);
-        write<Reader>(wr, str, len);
+    template <class Reader, class Type>
+    void scan(Reader &wr, Type &data) {
+        Scan<Reader, Type>()(wr, data);
     }
-};
 
-template <class Reader>
-struct Scan<Reader, const char*> {
-    void operator() (Reader &wr, const char* str) const {
+    template <class Reader, class Type, class... Types>
+    void scan(Reader &wr, Type &data, Types... datas) {
+        scan(wr, data);
+        scan(wr, datas...);
     }
-};
+
+    template <class Reader>
+    struct Scan<Reader, int> {
+        void operator() (Reader &wr, int& result) const {
+            size_t len = std::strlen(str);
+            char c = get<Reader, char>(wr);
+
+        }
+    };
+
+    template <class Reader>
+    struct Scan<Reader, const char*> {
+        void operator() (Reader &wr, const char* str) const {
+        }
+    };
+
+}

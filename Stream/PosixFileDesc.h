@@ -10,11 +10,10 @@
 
 #include "StreamDefs.h"
 #include "BufferedReader.h"
-
-#include <unistd.h>
-
 #include <algorithm>
 #include <utility>
+
+#include <unistd.h>
 
 namespace Stream {
 
@@ -38,7 +37,7 @@ namespace Stream {
 
         PosixFile& operator= (const PosixFile& that) {
             this->~PosixFile();
-            id = ::dup(that.id);
+            this->id = ::dup(that.id);
             return *this;
         }
         

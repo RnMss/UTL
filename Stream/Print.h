@@ -35,6 +35,13 @@ namespace Stream {
         }
     };
 
+    template <class Writer>
+    struct Print<Writer, char*> {
+        void operator() (Writer &wr, char* str) const {
+            Print<Writer, const char*>()(wr, str);
+        }
+    };
+
     template <class Writer, class Int>
     void print_integer(Writer &wr, Int num) {
         char str[32] = {0};

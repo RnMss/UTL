@@ -7,6 +7,8 @@
 //  Copyright (c) 2014年 RnMss. All rights reserved.
 //
 
+#include <cassert>
+
 namespace Stream {
 
     template <class Writer, class WriteFunc = Write<Writer> >
@@ -114,20 +116,27 @@ namespace Stream {
                         n_size = buffer_size - q_head;
                         q_size = n_size + q_tail;
                     }
-                    
-                    if (q_size < batch_size && !want_flush() && is_running) {
-                        cnd_w.wait(mtx_rw);
-                    } else { break; }
+                   
+                    if (!is_running) { break; }
+                    if (want_flush()) { break; }
+                    if (q_size > batch_size) { break; }
+                    cnd_w.wait(mtx_rw);
                 }
                 
-                if (!is_running && q_empty) { break; }
+                if (!is_running && q_empty) {
+                    mtx_rw.unlock();
+                    break;
+                }
                 
                 char* ptr_head = buffer + q_head;
                 mtx_rw.unlock();
                 
                 ssize_t n_write = writefunc(file, ptr_head, n_size);
                 
-                if (n_write <= 0) { break; }
+                if (n_write <= 0) {
+                    mtx_rw.unlock();
+                    break;
+                }
                 
                 mtx_rw.lock();
                 {
@@ -193,8 +202,21 @@ namespace Stream {
             
         void flush() {
             mtx_rw.lock();
-            flush_barrier = q_tail;
-            cnd_w.notify_all();
+            {
+                assert(is_running);
+                
+                if (q_empty) {
+                    mtx_rw.unlock();
+                    return;
+                }
+
+                flush_barrier = q_tail;
+                cnd_w.notify_all();
+
+            }
+            mtx_rw.unlock();
+            
+            mtx_rw.lock();
             while (want_flush()) {
                 cnd_r.wait(mtx_rw);
             }
