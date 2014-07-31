@@ -188,7 +188,7 @@ namespace Stream {
                 return i_len - len;
             }
             
-            int getchar() {
+            int peek() {
                 mtx_rw.lock();
                 
                 while (q_empty && is_running) {
@@ -217,15 +217,15 @@ namespace Stream {
                 std::string result;
                 for ( ; ; ) {
                     size_t n = readline(buf, LEN, eol.c_str());
-                    std::string postfix(buf + n - eol.length(), buf + n);
+                    std::string postfix(&buf[n - eol.length()], &buf[n]);
                     if (n < LEN) {
                         buf[n] = '\0';
-                        result.append(buf);
+                        result.append(buf.get());
                         break;
                     } 
                     if (eol == postfix) {
                         buf[n - eol.length()] = '\0';
-                        result.append(buf);
+                        result.append(buf.get());
                         break;
                     }
                 }
@@ -308,17 +308,6 @@ namespace Stream {
             body->reader_thread = std::thread(
                 [ pbody ] { pbody->keep_reading(); }
             );
-        }
-    };
- 
-    template <class Reader>
-    struct Get<Stream::BufferedReader<Reader>, char> {
-        char operator() (Reader& rd) const {
-            char c = rd.getchar();
-            if (c == -1) {
-                throw StreamException("error occured reading stream");
-            }
-            return c;
         }
     };
 

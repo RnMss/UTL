@@ -30,7 +30,7 @@ namespace Stream {
     struct Scan<Reader, int> {
         void operator() (Reader &wr, int& result) const {
             size_t len = std::strlen(str);
-            char c = get<Reader, char>(wr);
+            char c = get<char, Reader>(wr);
 
         }
     };

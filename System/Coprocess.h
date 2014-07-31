@@ -4,18 +4,19 @@
  *
  * [ bash ]
  *
-/bin/awk 'print $1'  0<file_a 1>file_b 2>file_c
-
-[ C++ ]
-
-File file_a, file_b, file_c;
-Coprocess proc( { "/bin/awk", "{print $1}" },
-                { 0_FD <<file_a, 1_FD >>file_b, 2_FD>>file_c } 
-              );
-...
-proc.wait();
-
-*****************************************************************/
+ * /bin/awk 'print $1'  0<file_a 1>file_b 2>file_c
+ * 
+ * [ C++ ]
+ *
+ * File file_a, file_b, file_c;
+ * Coprocess proc( { "/bin/awk", "{print $1}" },
+ *                 { 0_FD <<file_a, 1_FD >>file_b, 2_FD>>file_c } 
+ *                 { "HOME=/home/work" }
+ *               );
+ * ...
+ * proc.wait();
+ *
+ *****************************************************************/
 
 #include <vector>
 #include <stdexcept>
@@ -23,10 +24,11 @@ proc.wait();
 #include <cassert>
 #include <cstring>
 #include <initializer_list>
-#include "../Stream/Stream.h"
+#include "Stream/Stream.h"
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include <unistd.h>
 
 namespace System {
@@ -39,8 +41,10 @@ namespace System {
         int coprocess_fileno;
     };
 
-    struct redirect_clause_file_t {
+    struct FileNo {
         int fileno;
+
+        FileNo(int f) : fileno(f) {}
 
         redirect_clause_t operator<< (Stream::PosixFile& file) {
             return redirect_clause_t
@@ -53,9 +57,15 @@ namespace System {
         }
     };
 
-    constexpr redirect_clause_file_t operator"" _FD (unsigned long long int fileno) {
-        return redirect_clause_file_t{ (int)fileno };
+    /*
+    constexpr FileNo operator"" _FNO (unsigned long long int fileno) {
+        return FileNo(fileno);
     }
+
+    constexpr FileNo FNO(int fileno)  {
+        return FileNo(fileno);
+    }
+    */
 
     class PipeException
         : public std::runtime_error
@@ -95,23 +105,39 @@ namespace System {
             return *this;
         }
 
-        Coprocess(const char* cmd)
-            : Coprocess("/bin/sh", { "sh", "-c", cmd }, {}, {}) 
+        Coprocess(
+            const std::string&                          command,
+            std::initializer_list<redirect_clause_t>    redirection = {},
+            std::initializer_list<const char*>          environs    = {}
+        )
+            : Coprocess("/bin/sh", { "sh", "-c", command.c_str() },
+                        redirection, environs) 
+        {
+        }
+
+
+        Coprocess(
+            const char*                                 command,
+            std::initializer_list<redirect_clause_t>    redirection = {},
+            std::initializer_list<const char*>          environs    = {}
+        )
+            : Coprocess("/bin/sh", { "sh", "-c", command }, 
+                        redirection, environs) 
         {
         }
 
         Coprocess(
-                const char*                                 filename,
-                std::initializer_list<const char*>          arguments,
-                std::initializer_list<redirect_clause_t>    redirection,
-                std::initializer_list<const char*>          environs
+            const char*                                 filename,
+            std::initializer_list<const char*>          arguments,
+            std::initializer_list<redirect_clause_t>    redirection,
+            std::initializer_list<const char*>          environs
         ) 
         {
             using namespace std;
     
             vector<pair<int, int>> pipes;
 
-            for (const redirect_clause_t& r : redirection) {
+            for (const redirect_clause_t& r: redirection) {
                 pipes.push_back(_pipe_throw());
             }
 
@@ -136,9 +162,13 @@ namespace System {
                 }
 
                 vector<const char*> args(std::begin(arguments), std::end(arguments));
-                vector<const char*> envs(std::begin(environs), std::end(environs));
                 args.push_back(nullptr);
-                envs.push_back(nullptr);
+                
+                vector<const char*> envs(std::begin(environs), std::end(environs));
+                for (char** e = environ; ; ++e) {
+                    envs.push_back(*e);
+                    if (*e == nullptr) break;
+                }
 
                 ::execve(filename, const_cast<char* const*>(args.data()), 
                                    const_cast<char* const*>(envs.data()) );

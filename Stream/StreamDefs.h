@@ -78,12 +78,12 @@ namespace Stream {
         }
     };
     
-    template <class Writer, class Data>
+    template <class Data, class Writer>
     void put(Writer& wr, const Data& data) {
         Put<Writer, Data>()(wr, data);
     }
     
-    template <class Reader, class Data>
+    template <class Data, class Reader>
     Data get(Reader& rd) {
         return std::move(Get<Reader, Data>()(rd));
     }
